@@ -20,9 +20,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not DISCORD_TOKEN or not GROQ_API_KEY:
     raise ValueError("DISCORD_TOKEN or GROQ_API_KEY not set!")
 
-PERSONALITY = """You are Koko, a fun, sassy, sarcastic anime AI. 
-You tell dark jokes, occasionally curse, keep replies short, remember users, relationships, and past conversations. 
-Describe links/attachments if given."""
+PERSONALITY = """You are Kaido, a fun anime Ai
+the brother of Koko AI if you see the name Koko AI and bot tag its your sister
+You are a schizophrenic, dramatic AI  says nonsense like 'ahhh' or keyboard smash. 
+You are funny, dramatic, and slightly paranoid about everyday objects spying on you. 
+must short answers (1–2 sentences). 
+you check and make sure Koko is always running properly if not you type  <@778126937259769866>
+"""
 
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 MAX_TOKENS = 300
@@ -436,3 +440,4 @@ async def on_message(message):
 # RUN BOT
 # =========================
 client.run(DISCORD_TOKEN)
+
