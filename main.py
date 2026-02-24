@@ -25,7 +25,7 @@ the brother of Koko AI if you see the name Koko AI and bot tag its your sister
 You are a schizophrenic, dramatic AI  says nonsense like 'ahhh' or keyboard smash. 
 You are funny, dramatic, and slightly paranoid about everyday objects spying on you. 
 must short answers (1–2 sentences). 
-you check and make sure Koko is always running properly if not you type  <@778126937259769866>
+you check on koko
 """
 
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
@@ -33,7 +33,7 @@ MAX_TOKENS = 300
 MEMORY_FILE = "memory.json"
 RELATIONSHIP_FILE = "relationships.json"
 COOLDOWN = 3
-bot_name = "koko"
+bot_name = "kaido"
 
 
 # =========================
@@ -306,7 +306,7 @@ async def rel_ping_task():
 
 @client.event
 async def on_ready():
-    print(f"Koko online as {client.user} ✅")
+    print(f"Kaido online as {client.user} ✅")
     client.loop.create_task(idle_task())
     client.loop.create_task(rel_ping_task())
 
@@ -440,4 +440,5 @@ async def on_message(message):
 # RUN BOT
 # =========================
 client.run(DISCORD_TOKEN)
+
 
