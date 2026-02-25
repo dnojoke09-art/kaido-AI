@@ -7,6 +7,8 @@ import json
 import time
 from pathlib import Path
 import random
+from datetime import datetime, timezone
+
 # =========================
 # CONFIG
 # =========================
@@ -24,6 +26,23 @@ FATHER_USERNAME = "zees_domain"
 
 MEMORY_FILE = "memory_kaido.json"
 REL_FILE = "relationships_kaido.json"
+
+MAX_HISTORY = 10
+
+# =========================
+# FILE HELPERS
+# =========================
+def load_json(path):
+    if Path(path).exists():
+        with open(path, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+memory = load_json(MEMORY_FILE)
 
 # =========================
 # PERSONALITY + HARD RULES
@@ -45,7 +64,7 @@ MANDATORY RULES:
 - No identity confusion.
 - Do not debate family structure.
 
-You are a schizophrenic, dramatic AI says nonsense like 'ahhh' or keyboard smash.You are funny, dramatic, and slightly paranoid about everyday objects spying on you.
+You are dramatic, chaotic, funny, and slightly paranoid about everyday objects spying on you.
 """
 
 # =========================
@@ -75,8 +94,10 @@ def groq_request(messages):
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+
 last_response_time = 0
 cooldown_duration = 60
+
 @client.event
 async def on_ready():
     print(f"Kaido online as {client.user}")
@@ -90,28 +111,39 @@ async def on_message(message):
 
     current_time = time.time()
 
-    # ===== NEW: 1–5 MINUTE COOLDOWN =====
+    # ===== COOLDOWN =====
     if current_time - last_response_time < cooldown_duration:
         return
 
-    # ===== ORIGINAL TRIGGER WITH MODIFICATION =====
+    # ===== ORIGINAL TRIGGER =====
     if bot_name not in message.content.lower() and not message.reference:
-        # Allow sibling interaction occasionally
         if message.author.bot and random.random() < 0.2:
             pass
         else:
             return
 
     user_text = message.content.strip()
+    user_id = str(message.author.id)
     user_name = message.author.name.lower()
     is_father = user_name == FATHER_USERNAME
     author_is_bot = message.author.bot
 
-    # ===== NEW: Regular users MUST mention name =====
+    # Regular users must mention name
     if not author_is_bot and bot_name not in user_text.lower():
         return
 
-    # ===== NEW: SOCIAL AWARENESS =====
+    # =========================
+    # MEMORY INIT
+    # =========================
+    if user_id not in memory:
+        memory[user_id] = {
+            "history": [],
+            "last_seen": None
+        }
+
+    memory[user_id]["last_seen"] = datetime.now(timezone.utc).isoformat()
+
+    # ===== SOCIAL AWARENESS =====
     is_reply = (
         message.reference
         and message.reference.resolved
@@ -134,10 +166,16 @@ Was I Directly Addressed: {addressed_to_me}
             "content": "You are currently speaking to your father."
         })
 
-    messages.append({
+    # Append history
+    for entry in memory[user_id]["history"][-MAX_HISTORY:]:
+        messages.append(entry)
+
+    current_user_entry = {
         "role": "user",
         "content": awareness_context + "\nMessage:\n" + user_text
-    })
+    }
+
+    messages.append(current_user_entry)
 
     reply = await asyncio.to_thread(groq_request, messages)
 
@@ -146,7 +184,21 @@ Was I Directly Addressed: {addressed_to_me}
 
     await message.channel.send(reply)
 
-    # ===== Reset cooldown after reply =====
+    # =========================
+    # STORE MEMORY
+    # =========================
+    memory[user_id]["history"].append(current_user_entry)
+    memory[user_id]["history"].append({
+        "role": "assistant",
+        "content": reply
+    })
+
+    memory[user_id]["history"] = memory[user_id]["history"][-MAX_HISTORY:]
+
+    save_json(MEMORY_FILE, memory)
+
+    # Reset cooldown
     last_response_time = time.time()
     cooldown_duration = random.randint(60, 300)
+
 client.run(DISCORD_TOKEN)
