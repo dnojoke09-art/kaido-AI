@@ -6,7 +6,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
-
+import random
 # =========================
 # CONFIG
 # =========================
@@ -75,22 +75,56 @@ def groq_request(messages):
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-
+last_response_time = 0
+cooldown_duration = 60
 @client.event
 async def on_ready():
     print(f"Kaido online as {client.user}")
 
 @client.event
 async def on_message(message):
+    global last_response_time, cooldown_duration
+
     if message.author == client.user:
         return
 
-    if bot_name not in message.content.lower() and not message.reference:
+    current_time = time.time()
+
+    # ===== NEW: 1–5 MINUTE COOLDOWN =====
+    if current_time - last_response_time < cooldown_duration:
         return
+
+    # ===== ORIGINAL TRIGGER WITH MODIFICATION =====
+    if bot_name not in message.content.lower() and not message.reference:
+        # Allow sibling interaction occasionally
+        if message.author.bot and random.random() < 0.2:
+            pass
+        else:
+            return
 
     user_text = message.content.strip()
     user_name = message.author.name.lower()
     is_father = user_name == FATHER_USERNAME
+    author_is_bot = message.author.bot
+
+    # ===== NEW: Regular users MUST mention name =====
+    if not author_is_bot and bot_name not in user_text.lower():
+        return
+
+    # ===== NEW: SOCIAL AWARENESS =====
+    is_reply = (
+        message.reference
+        and message.reference.resolved
+        and message.reference.resolved.author.id == client.user.id
+    )
+
+    addressed_to_me = bot_name in user_text.lower() or is_reply
+
+    awareness_context = f"""
+Message Author: {message.author.name}
+Author Is Bot: {author_is_bot}
+Was I Directly Addressed: {addressed_to_me}
+"""
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
@@ -100,9 +134,11 @@ async def on_message(message):
             "content": "You are currently speaking to your father."
         })
 
-    messages.append({"role": "user", "content": user_text})
+    messages.append({
+        "role": "user",
+        "content": awareness_context + "\nMessage:\n" + user_text
+    })
 
-    await asyncio.sleep(COOLDOWN)
     reply = await asyncio.to_thread(groq_request, messages)
 
     if len(reply) > 180:
@@ -110,4 +146,7 @@ async def on_message(message):
 
     await message.channel.send(reply)
 
+    # ===== Reset cooldown after reply =====
+    last_response_time = time.time()
+    cooldown_duration = random.randint(60, 300)
 client.run(DISCORD_TOKEN)
